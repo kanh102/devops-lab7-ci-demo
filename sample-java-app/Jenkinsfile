@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'M3'
+    }
+
+    environment {
+        // Nexus configuration
+        NEXUS_URL = 'http://lab7-nexus:8081'
+        NEXUS_REPO = 'maven-snapshots'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '=== STEP 1: CHECKOUT ==='
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo '=== STEP 2: BUILD ==='
+                dir('sample-java-app') {
+                    sh 'mvn clean compile'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo '=== STEP 3: TEST ==='
+                dir('sample-java-app') {
+                    sh 'mvn test'
+                }
+            }
+            post {
+                success {
+                    dir('sample-java-app') {
+                        junit 'target/surefire-reports/*.xml'
+                    }
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                echo '=== STEP 4: PACKAGE ==='
+                dir('sample-java-app') {
+                    sh 'mvn package -DskipTests'
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'PIPELINE SUCCESS — All stages passed!'
+        }
+        failure {
+            echo 'PIPELINE FAILED — Check logs above!'
+        }
+    }
+}
